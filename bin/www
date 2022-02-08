@@ -1,0 +1,143 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+require("dotenv").config();
+var app = require("../app");
+var debug = require("debug")("practice-back:server");
+var http = require("http");
+var usernames = {};
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+  var port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    // named pipe
+    return val;
+  }
+
+  if (port >= 0) {
+    // port number
+    return port;
+  }
+
+  return false;
+}
+
+
+
+const { DB_HOST, DB_USERNAME, DB_PASSWORD } = process.env;
+
+var pg = require("pg"),
+  pgClient;
+
+const connectionData = {
+  user: DB_USERNAME,
+  host: DB_HOST,
+  database: "practice",
+  password: DB_PASSWORD,
+  port: 5432,
+};
+
+var sockets = [];
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || "3000");
+app.set("port", port);
+
+/**
+ * Create HTTP server.
+ */
+
+var server = http.createServer(app);
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+server.listen(port);
+server.on("error", onError);
+server.on("listening", onListening);
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+  if (error.syscall !== "listen") {
+    throw error;
+  }
+
+  var bind = typeof port === "string" ? "Pipe " + port : "Port " + port;
+
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case "EACCES":
+      console.error(bind + " requires elevated privileges");
+      process.exit(1);
+      break;
+    case "EADDRINUSE":
+      console.error(bind + " is already in use");
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+  var addr = server.address();
+  var bind = typeof addr === "string" ? "pipe " + addr : "port " + addr.port;
+  debug("Listening on " + bind);
+}
+
+const io = require("socket.io")(server, {
+  cors: {
+    origin: ["http://localhost:4200"],
+  },
+});
+
+//configuracion del socket
+io.on("connection", function (socket) {
+  
+
+  socket.on('my message', () => {
+    io.emit("friend_update", data.payload);
+  });
+
+  socket.on("new-message", function (data) {
+    messages.push(data);
+
+    io.sockets.emit("messages", messages);
+  });
+
+  socket.on('disconnect', function() {
+
+    //remueve socket
+    sockets.splice(sockets.indexOf(socket),1);
+  });
+
+  //guarda socket
+  sockets.push(socket);
+});
+
+  console.log("LISTEN friend_update");
+  pgClient = new pg.Client(connectionData);
+  pgClient.connect();
+  pgClient.query("LISTEN friend_update");
+  pgClient.on("notification", function (data) {
+    //envia mensaje via socket, se puede personalizar el mensaje al colocar un username
+    sockets[0].emit("friend_update", data.payload);    
+  });
+
